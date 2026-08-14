@@ -1,0 +1,12 @@
+# Per-trial Syne Tune experiment logs/metadata: thousands of small files per
+# simulation sweep, ~410MB total, fully regeneratable by rerunning
+# run_simulations.py / run_pinned_fidelity_simulations.py / etc. against the
+# blackbox files (which ARE tracked). Not worth versioning.
+**/syne_tune_runs/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
