@@ -51,6 +51,14 @@ def _parse_args():
     parser.add_argument("--size", required=True)
     parser.add_argument("--budget-tag", default="generous", choices=["generous", "tight"])
     parser.add_argument("--pinned-step", type=int, default=400)
+    parser.add_argument(
+        "--optimizers", default=None,
+        help="Comma-separated subset of PINNED_OPTIMIZERS to run (default: all of them). "
+             "e.g. --optimizers RandomSearch,ASHA-min400,BOHB-min400 for just the -min400 "
+             "ablation. NOTE: output is a full overwrite of simulation_raw.csv, not a merge -- "
+             "running a subset means downstream analyze_pinned_fidelity.py only sees that "
+             "subset until a full (all-optimizers) run is done again for this size/budget-tag.",
+    )
     return parser.parse_args()
 
 
@@ -230,13 +238,23 @@ def main() -> None:
     if skipped:
         print(f"[WARN] {size_key}: skipping objectives not available for this size: {skipped}")
 
+    if _args.optimizers:
+        requested = [o.strip() for o in _args.optimizers.split(",") if o.strip()]
+        unknown = [o for o in requested if o not in PINNED_OPTIMIZERS]
+        if unknown:
+            raise ValueError(f"unknown optimizer(s) {unknown}, must be a subset of {PINNED_OPTIMIZERS}")
+        optimizers = requested
+        print(f"[INFO] {size_key}: restricting to requested optimizer subset: {optimizers}")
+    else:
+        optimizers = PINNED_OPTIMIZERS
+
     runs = [
         (objective, optimizer, seed)
         for objective in objectives
-        for optimizer in PINNED_OPTIMIZERS
+        for optimizer in optimizers
         for seed in range(N_SEEDS)
     ]
-    print(f"Running {len(runs)} simulations ({len(objectives)} objectives x {len(PINNED_OPTIMIZERS)} optimizers x {N_SEEDS} seeds)")
+    print(f"Running {len(runs)} simulations ({len(objectives)} objectives x {len(optimizers)} optimizers x {N_SEEDS} seeds)")
 
     all_frames = []
     t0 = time.time()

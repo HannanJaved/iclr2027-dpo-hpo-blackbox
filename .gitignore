@@ -10,3 +10,6 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# SLURM job logs: regeneratable, not worth versioning
+.logs/
