@@ -1,1 +1,1 @@
-{"lr": {"domain_cls": "Categorical", "domain_kwargs": {"categories": [1e-06, 2e-06, 4e-06]}, "sampler_cls": "Uniform", "sampler_kwargs": {}}, "beta": {"domain_cls": "Categorical", "domain_kwargs": {"categories": [0.01, 0.02, 0.04]}, "sampler_cls": "Uniform", "sampler_kwargs": {}}}
+{"lr": {"domain_cls": "Categorical", "domain_kwargs": {"categories": [8e-07, 1e-06, 2e-06, 4e-06]}, "sampler_cls": "Uniform", "sampler_kwargs": {}}, "beta": {"domain_cls": "Categorical", "domain_kwargs": {"categories": [0.01, 0.02, 0.04]}, "sampler_cls": "Uniform", "sampler_kwargs": {}}}

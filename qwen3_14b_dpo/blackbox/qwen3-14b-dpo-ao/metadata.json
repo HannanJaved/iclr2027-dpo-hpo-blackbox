@@ -1,1 +1,1 @@
-{"size_key": "14b", "source": "ICLR27 qwen3 DPO-AO sweep", "objectives_names": ["ARC-C", "GPQA", "GSM8K", "HellaSwag", "PIQA", "TruthfulQA", "IFEval", "Arena-Hard", "MT-Bench", "ELO", "Z-Static", "Z-Dynamic", "Z-All", "elapsed_time_sec"], "task_names": ["qwen3-14b-dpo-ao"]}
+{"size_key": "14b", "source": "ICLR27 qwen3 DPO-AO sweep", "objectives_names": ["ARC-C", "GPQA", "GSM8K", "HellaSwag", "PIQA", "TruthfulQA", "IFEval", "Arena-Hard", "MT-Bench", "AlpacaEval", "ELO", "Z-Static", "Z-Dynamic", "Z-All", "elapsed_time_sec"], "task_names": ["qwen3-14b-dpo-ao"]}
