@@ -1,8 +1,18 @@
-"""Shared constants and per-size paths for the Qwen3 DPO multi-fidelity HPO blackbox.
+"""Shared constants and per-size paths for the Qwen3 / Llama DPO multi-fidelity
+HPO blackbox.
 
-One blackbox per model size (0.6b, 1.7b, 4b, 8b, 14b), never mixed -- HPO
-comparisons only make sense within a fixed model size. Use ``get_paths(size_key)``
-to resolve where a given size's data/blackbox/results live.
+One blackbox per (family, model size) -- e.g. Qwen3 0.6b/1.7b/4b/8b/14b, Llama
+1b/3b/8b -- never mixed across sizes (HPO comparisons only make sense within a
+fixed model size) or across families (different training data / architecture,
+not a fair comparison). Use ``get_paths(size_key, family=...)`` to resolve
+where a given (family, size)'s data/blackbox/results live.
+
+The "combined cross-size" experiment (build_combined_blackbox.py,
+run_combined_simulations.py, analyze_combined.py, analyze_cross_size.py,
+analyze_scale_uncertainty.py, analyze_transfer_across_fidelity.py,
+analyze_transfer_across_scale.py, summarize_converging_evidence.py) still
+targets Qwen3's 5 sizes only (SIZE_KEYS, unchanged) -- it hasn't been
+extended to Llama.
 """
 from __future__ import annotations
 
@@ -16,7 +26,19 @@ HERE = Path(__file__).resolve().parent
 
 sys.path.insert(0, str(ICLR_DIR))
 
+# Qwen3 sizes: used directly (unqualified) by every combined-cross-size script,
+# which is Qwen3-only -- kept as-is for those. Per-size scripts (collect_data.py
+# etc.) go through SIZE_KEYS_BY_FAMILY / get_paths(..., family=...) instead, so
+# they work for either family.
 SIZE_KEYS = ["0.6b", "1.7b", "4b", "8b", "14b"]
+
+SIZE_KEYS_BY_FAMILY = {
+    "qwen3": SIZE_KEYS,
+    "llama": ["1b", "3b", "8b"],
+}
+FAMILIES = list(SIZE_KEYS_BY_FAMILY)
+DEFAULT_FAMILY = "qwen3"
+FAMILY_LABELS = {"qwen3": "Qwen3", "llama": "Llama"}
 
 # All 11 benchmarks tracked by the ICLR pipeline (qwen3_iclr_common.ALL_BENCHMARKS).
 BENCHMARKS = [
@@ -52,7 +74,7 @@ SEARCH_OBJECTIVES = ["ELO", "Arena-Hard", "MT-Bench", "AlpacaEval", "IFEval", "Z
 # model). BOHB vs TPE isolates the effect of multi-fidelity while holding the
 # search model fixed; BOTorch/TPE/CQR isolate the effect of surrogate model choice
 # while holding the fidelity strategy (single) fixed.
-OPTIMIZERS = ["RandomSearch", "BOTorch", "TPE", "CQR", "ASHA", "BOHB"]
+OPTIMIZERS = ["RandomSearch", "TPE", "CQR", "ASHA", "BOHB"]  # BOTorch excluded -- buggy implementation
 OPTIMIZER_COLORS = {
     "RandomSearch": "#4C72B0",
     "BOTorch": "#55A868",
@@ -87,33 +109,42 @@ def slug(size_key: str) -> str:
 @dataclass(frozen=True)
 class Paths:
     size_key: str
+    family: str
     budget_tag: str
     size_dir: Path
     grid_csv: Path
     blackbox_dir: Path
+    blackbox_key: str
+    config_map_csv: Path
     results_dir: Path
     simulation_raw_csv: Path
     best_found_csv: Path
     figures_dir: Path
 
 
-def get_paths(size_key: str, budget_tag: str = DEFAULT_BUDGET_TAG) -> Paths:
-    if size_key not in SIZE_KEYS:
-        raise ValueError(f"size_key must be one of {SIZE_KEYS}, got {size_key!r}")
+def get_paths(size_key: str, budget_tag: str = DEFAULT_BUDGET_TAG, family: str = DEFAULT_FAMILY) -> Paths:
+    if family not in SIZE_KEYS_BY_FAMILY:
+        raise ValueError(f"family must be one of {FAMILIES}, got {family!r}")
+    valid_sizes = SIZE_KEYS_BY_FAMILY[family]
+    if size_key not in valid_sizes:
+        raise ValueError(f"size_key for family {family!r} must be one of {valid_sizes}, got {size_key!r}")
     if budget_tag not in BUDGET_REGIMES:
         raise ValueError(f"budget_tag must be one of {list(BUDGET_REGIMES)}, got {budget_tag!r}")
     sl = slug(size_key)
-    size_dir = HERE / f"qwen3_{sl}_dpo"
+    size_dir = HERE / f"{family}_{sl}_dpo"
     # The default regime keeps its original path (results/) so nothing already
     # computed needs to move; other regimes get their own results_<tag>/ dir.
     results_dirname = "results" if budget_tag == DEFAULT_BUDGET_TAG else f"results_{budget_tag}"
     results_dir = size_dir / results_dirname
     return Paths(
         size_key=size_key,
+        family=family,
         budget_tag=budget_tag,
         size_dir=size_dir,
-        grid_csv=size_dir / "data" / f"qwen3_{sl}_dpo_grid.csv",
-        blackbox_dir=size_dir / "blackbox" / f"qwen3-{size_key}-dpo-ao",
+        grid_csv=size_dir / "data" / f"{family}_{sl}_dpo_grid.csv",
+        blackbox_dir=size_dir / "blackbox" / f"{family}-{size_key}-dpo-ao",
+        blackbox_key=f"{family}-{size_key}-dpo-ao",
+        config_map_csv=size_dir / "blackbox" / f"{family}-{size_key}-dpo-ao-config-map.csv",
         results_dir=results_dir,
         simulation_raw_csv=results_dir / "simulation_raw.csv",
         best_found_csv=results_dir / "best_found.csv",

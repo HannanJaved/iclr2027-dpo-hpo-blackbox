@@ -31,6 +31,7 @@ stopping snapshot rather than the configuration itself.
 
 Usage:
     python analyze_results.py --size 1.7b
+    python analyze_results.py --size 8b --family llama
 """
 from __future__ import annotations
 
@@ -43,7 +44,7 @@ import numpy as np
 import pandas as pd
 
 from build_blackbox import add_composite_zscores, fill_gaps, usable_benchmarks
-from common import OPTIMIZER_COLORS, OPTIMIZERS, SEARCH_OBJECTIVES, get_paths
+from common import DEFAULT_FAMILY, FAMILIES, FAMILY_LABELS, OPTIMIZER_COLORS, OPTIMIZERS, SEARCH_OBJECTIVES, get_paths
 
 ALL_TRANSFER_METRICS = ["ELO", "Arena-Hard", "MT-Bench", "AlpacaEval", "IFEval", "Z-Dynamic", "Z-Static", "Z-All"]
 
@@ -130,7 +131,7 @@ def plot_regret_curves(raw: pd.DataFrame, headline_objectives: list[str], size_k
 
     budget_desc = "simulated budget" if x_axis == "time" else "number of evaluations"
     fig.suptitle(
-        f"Qwen3-{size_key} DPO-AO — optimizer comparison — mean best-value-so-far vs. {budget_desc} "
+        f"{size_key} DPO-AO — optimizer comparison — mean best-value-so-far vs. {budget_desc} "
         "(25 seeds, shaded = ±1 SEM)",
         fontsize=11,
     )
@@ -167,7 +168,7 @@ def plot_cross_metric_transfer(recs: pd.DataFrame, final: pd.DataFrame, search_o
                     color="white" if abs(v) > 0.6 * vabs else "black", fontweight="bold")
     fig.colorbar(im, ax=ax, label="mean z-score of recommended config (over optimizers x seeds)")
     ax.set_title(
-        f"Qwen3-{size_key} DPO-AO — cross-metric transfer: search for row, evaluate on column\n"
+        f"{size_key} DPO-AO — cross-metric transfer: search for row, evaluate on column\n"
         "(4 optimizers x 25 seeds per row)",
         fontsize=10,
     )
@@ -203,7 +204,7 @@ def plot_objective_recovers_best_config(recs: pd.DataFrame, final: pd.DataFrame,
     ax2.tick_params(axis="x", rotation=30)
     ax2.grid(axis="y", linestyle="--", alpha=0.3)
 
-    fig.suptitle(f"Qwen3-{size_key} DPO-AO — which search objective recovers the best DPO config? "
+    fig.suptitle(f"{size_key} DPO-AO — which search objective recovers the best DPO config? "
                  f"(100 runs/objective, {n_configs}-config grid)", fontsize=11)
     fig.tight_layout()
     out = figures_dir / "objective_recovers_best_config.png"
@@ -220,13 +221,15 @@ def plot_objective_recovers_best_config(recs: pd.DataFrame, final: pd.DataFrame,
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--size", required=True)
+    parser.add_argument("--family", default=DEFAULT_FAMILY, choices=FAMILIES)
     parser.add_argument("--budget-tag", default="generous", choices=["generous", "tight"])
     args = parser.parse_args()
 
-    paths = get_paths(args.size, args.budget_tag)
-    # Only used for figure titles (not paths) so "tight" budget plots are
-    # unambiguous even if the PNG is viewed out of context.
-    label = args.size if args.budget_tag == "generous" else f"{args.size} ({args.budget_tag} budget)"
+    paths = get_paths(args.size, args.budget_tag, family=args.family)
+    # Only used for figure titles (not paths) so "tight" budget plots / other
+    # families are unambiguous even if the PNG is viewed out of context.
+    family_label = FAMILY_LABELS.get(args.family, args.family.capitalize())
+    label = f"{family_label}-{args.size}" + ("" if args.budget_tag == "generous" else f" ({args.budget_tag} budget)")
 
     paths.figures_dir.mkdir(parents=True, exist_ok=True)
     raw = pd.read_csv(paths.simulation_raw_csv)
@@ -238,7 +241,7 @@ def main() -> None:
     search_objectives = [o for o in SEARCH_OBJECTIVES if o in raw["search_objective"].unique()]
     transfer_metrics = [m for m in ALL_TRANSFER_METRICS if m in benchmarks or m in ("Z-Static", "Z-Dynamic", "Z-All")]
 
-    print(f"Ground-truth ranking for Qwen3-{args.size} (final fidelity, by Z-All):")
+    print(f"Ground-truth ranking for {family_label}-{args.size} (final fidelity, by Z-All):")
     show_cols = ["lr", "beta", "zall_rank", "Z-All"] + [m for m in ("ELO", "Arena-Hard") if m in benchmarks]
     print(final.sort_values("zall_rank")[show_cols].to_string(index=False))
 
